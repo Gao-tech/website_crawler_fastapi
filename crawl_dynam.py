@@ -3,12 +3,10 @@ from urllib.parse import urljoin, urlparse
 from fastapi import HTTPException, APIRouter
 from pydantic import BaseModel
 from playwright.async_api import async_playwright
-from dotenv import load_dotenv
 import os
 
-load_dotenv() 
-MAX_LINKS = int(os.getenv("MAX_LINKS_PER_URL", 30))
 
+MAX_LINKS = int(os.getenv("MAX_LINKS_PER_URL", 30))
 
 router = APIRouter(tags=["dynam"])
 
@@ -24,15 +22,14 @@ async def crawl(target_url: str) -> CrawlResult:
     target_domain = parsed_target.hostname 
     pages = set()
     timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"error_log_{timestamp}.txt"
-  
+    filename = f"error_log_{target_domain}_{timestamp}.txt"
+    err_count=1
 
     async with async_playwright() as p:
         browser = await p.chromium.launch()
         context = await browser.new_context()
-
-
-        while queue:
+     
+        while queue and len(pages)<= MAX_LINKS:
             url = queue.pop(0)
             if url in visited:
                 continue
@@ -41,11 +38,8 @@ async def crawl(target_url: str) -> CrawlResult:
             try:
                 STATIC_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".css", ".js", ".svg", ".ico", ".pdf")
                 if any(url.lower().endswith(ext) for ext in STATIC_EXTENSIONS):
-                    print("-Size of pages ", len(pages))
+                    print("-Size of pages ", len(pages), MAX_LINKS)
                     pages.add(url)
-                    if len(pages) >= MAX_LINKS:
-                        print(f"-Crawling finishes with size of {MAX_LINKS}-")
-                        break
                     continue  
                 page = await context.new_page()
                 await page.goto(url, wait_until="networkidle")  
@@ -54,9 +48,6 @@ async def crawl(target_url: str) -> CrawlResult:
                 
                 print("--Size of pages ", len(pages))
                 pages.add(url)
-                if len(pages) >= MAX_LINKS:
-                    print(f"----Crawling finishes with size of {MAX_LINKS}----")
-                    break
                 links = await page.eval_on_selector_all(
                     "a, img", 
                     """elements => elements.map(e => 
@@ -86,19 +77,20 @@ async def crawl(target_url: str) -> CrawlResult:
                 await page.close()
             except Exception as e:
                
-                print(f"Error crawling {url}: {e}")
-                await write_err_in_file(e, filename)
+                # print(f"Error crawling {url}: {e}")
+                await write_err_in_file(e,err_count, filename)
+                err_count +=1
         await browser.close()
 
     return CrawlResult(domain=target_url, pages=pages)
 
-async def write_err_in_file(err, filename):
-       
+
+async def write_err_in_file(err, err_count, filename):
        # error_message = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d_%H-%M-%S") + "\t" + str(err) + "\n"
-        error_message = str(datetime.datetime.now(datetime.timezone.utc)) + "\t" + str(err) + "\n"
+        error_message = str(err_count) + ","+ str(datetime.datetime.now(datetime.timezone.utc)) + "\t" + str(err) + "\n"
+        
         with open(filename, "a") as f:
             f.write(error_message)
-
         print(f"Error log saved to {filename}")
 
 @router.get("/pages_dynam")

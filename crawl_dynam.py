@@ -1,20 +1,18 @@
 import datetime
 from urllib.parse import urljoin, urlparse
 from fastapi import HTTPException, APIRouter
-from pydantic import BaseModel
+from models import CrawlResult
 from playwright.async_api import async_playwright
 import os
+from redis_connect import save_to_redis, get_from_redis
 
 
-MAX_LINKS = int(os.getenv("MAX_LINKS_PER_URL", 30))
+MAX_LINKS = int(os.getenv("MAX_LINKS_PER_URL", 10))
 
 router = APIRouter(tags=["dynam"])
 
-class CrawlResult(BaseModel):
-    domain: str
-    pages: list[str]
 
-async def crawl(target_url: str) -> CrawlResult:
+async def crawl(target_url: str) -> list[str]:
 
     visited = set()
     queue = [target_url]
@@ -82,7 +80,7 @@ async def crawl(target_url: str) -> CrawlResult:
                 err_count +=1
         await browser.close()
 
-    return CrawlResult(domain=target_url, pages=pages)
+    return pages #CrawlResult(domain=target_url, pages=pages)
 
 
 async def write_err_in_file(err, err_count, filename):
@@ -97,4 +95,17 @@ async def write_err_in_file(err, err_count, filename):
 async def get_pages(target: str):
     if not target.startswith (("http://", "https://")):
         raise HTTPException(status_code=400, detail="Invalid URL format")
-    return await crawl(target)
+    pages= await crawl(target)
+    return CrawlResult(domain=target, pages=pages)
+
+
+@router.get("/pages_dynam_redis")
+async def get_pages(target: str):
+    if not target.startswith (("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Invalid URL format")
+    key = "Dynam"+target
+    value = get_from_redis(key)
+    if not value:
+        value = await crawl(target)
+        save_to_redis(key, value)
+    return CrawlResult(domain=target, pages=value)

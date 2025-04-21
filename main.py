@@ -8,3 +8,4 @@ load_dotenv(override=True)
 app = FastAPI()
 app.include_router(crawl_dynam.router)
 app.include_router(crawl_static.router)
+

@@ -3,20 +3,18 @@ from fastapi import HTTPException, APIRouter
 import httpx
 from bs4 import BeautifulSoup
 from pydantic import BaseModel
+from models import CrawlResult
 import datetime
 import os
+from redis_connect import save_to_redis, get_from_redis
 
-MAX_LINKS = int(os.environ.get("MAX_LINKS_PER_URL",30))
+MAX_LINKS = int(os.environ.get("MAX_LINKS_PER_URL_STATIC",50))
 
 
 router = APIRouter(tags=["static"])
 
-class CrawlResult(BaseModel):
-    domain: str
-    pages: list[str]
 
-
-async def crawl(target_url: str) -> CrawlResult:
+async def crawl(target_url: str) -> list[str]:
     visited = set()
     queue = [target_url]
     domain = urlparse(target_url).netloc
@@ -57,19 +55,30 @@ async def crawl(target_url: str) -> CrawlResult:
                     print(f"Error crawling {url}: {e}")
                     await write_err_in_file(e,err_count, filename)
                     err_count+=1
-    return CrawlResult(domain=target_url, pages=pages)     
+    return pages     
 
 
 async def write_err_in_file(err,err_count, filename):
-   
-    error_message = str(err_count) + "," + str(datetime.now(datetime.timezone.utc))+"\t"+str(err)+"\n"
-    with open(filename, "a") as f:
-            f.write(error_message)
-    print(f"Error log saved to {filename}")
 
+    error_message = str(err_count) + "," + str(datetime.datetime.now(datetime.timezone.utc))+ "\t" + str(err) + "\n"
+    with open(filename, "a") as f:
+        f.write(error_message)
+    print(f"Error log saved to {filename}")
 
 @router.get("/pages")
 async def get_pages(target: str):
     if not target.startswith (("http://", "https://")):
         raise HTTPException(status_code=400, detail="Invalid URL format")
-    return await crawl(target)
+    pages = await crawl(target)
+    return CrawlResult(domain=target, pages=pages)
+
+
+@router.get("/pages_redis")
+async def get_pages(target: str):
+    if not target.startswith (("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Invalid URL format")
+    value = get_from_redis(target)
+    if not value:
+        value = await crawl(target)
+        save_to_redis(target, value)
+    return CrawlResult(domain=target, pages=value)

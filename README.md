@@ -109,3 +109,9 @@ GET /pages_redis?target=https://example.com
 GET /pages_dynam?target=https://example.com
 GET /pages_dynam_redis?target=https://example.com
 ```
+
+## Deploy to AWS
+
+```
+The deployment details please refer to README file in aws_deploy folder
+```

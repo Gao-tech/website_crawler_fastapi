@@ -28,7 +28,7 @@ Key Strengths </br>
 | **Memory Usage** | Low (~10MB)           | High (~300MB+)             |
 | **Concurrency**  | Async HTTP client     | Headless browser instances |
 
-## Workflow Diagram
+## Workflow Sequence Diagram
 
 ```mermaid
 sequenceDiagram

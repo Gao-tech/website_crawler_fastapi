@@ -26,6 +26,12 @@ aws s3api create-bucket \
 
 ## SAM Build
 
+## SAM Locally run API Gateway
+
+```
+sam local start-api
+```
+
 ## SAM Deployment
 
 ```

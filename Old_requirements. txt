@@ -1,5 +1,0 @@
-sam deploy \
-  --s3-bucket web-crawler-bucket-12345674 \
-  --capabilities CAPABILITY_IAM \
-  --profile default \
-  --region eu-north-1

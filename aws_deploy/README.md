@@ -49,11 +49,11 @@ sam local start-api
 ## Get the endpoint from AWS API Gateway
 
 ```
-https://r7nznin876.execute-api.eu-north-1.amazonaws.com/Prod/pages
+https://....amazonaws.com/Prod/pages
 ```
 
 ## Test the endpoint from AWS API GateWay
 
 ```
-https://r7nznin876.execute-api.eu-north-1.amazonaws.com/Prod/pages?target=https://filip-ph-johansson.github.io
+https://....amazonaws.com/Prod/pages?target=https://2024.jecan.eu/
 ```
